@@ -61,6 +61,10 @@ func (c *Channel) Ip() string {
 	return c.ip
 }
 
+func (c *Channel) On(method string, f interface{}) error {
+	return c.server.On(method, f)
+}
+
 /**
 Get request header of this connection
 */

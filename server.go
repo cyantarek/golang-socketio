@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/graarh/golang-socketio/protocol"
-	"github.com/graarh/golang-socketio/transport"
+	"github.com/cyantarek/golang-socketio/protocol"
+	"github.com/cyantarek/golang-socketio/transport"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -227,6 +227,24 @@ func (s *Server) BroadcastToAll(method string, args interface{}) {
 	defer s.sidsLock.RUnlock()
 
 	for _, cn := range s.sids {
+		if cn.IsAlive() {
+			go cn.Emit(method, args)
+		}
+	}
+}
+
+/**
+Broadcast to all clients except specified
+*/
+func (c *Channel) BroadcastToAll(method string, args interface{}) {
+	c.server.sidsLock.RLock()
+	defer c.server.sidsLock.RUnlock()
+	
+	for _, cn := range c.server.sids {
+		if cn.Id() == c.Id() {
+			continue
+		}
+		
 		if cn.IsAlive() {
 			go cn.Emit(method, args)
 		}

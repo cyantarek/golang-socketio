@@ -91,6 +91,10 @@ func (c *Channel) Set(key string, value interface{}) {
 	c.data[key] = value
 }
 
+func (c *Channel) Get(key string) interface{} {
+	return c.data[key]
+}
+
 /**
 Join this channel to given room
 */

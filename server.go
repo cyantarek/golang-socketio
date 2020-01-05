@@ -87,6 +87,10 @@ func (s *Server) GetChannel(sid string) (*Channel, error) {
 	return c, nil
 }
 
+func (c *Channel) Set(key string, value interface{}) {
+	c.data[key] = value
+}
+
 /**
 Join this channel to given room
 */

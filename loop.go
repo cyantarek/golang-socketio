@@ -39,18 +39,19 @@ ping is automatic
 */
 type Channel struct {
 	conn transport.Connection
-
+	
 	out    chan string
 	header Header
-
+	
 	alive     bool
 	aliveLock sync.Mutex
-
+	
 	ack ackProcessor
-
+	
 	server        *Server
 	ip            string
 	requestHeader http.Header
+	data          map[string]interface{}
 }
 
 /**
@@ -61,6 +62,7 @@ func (c *Channel) initChannel() {
 	c.out = make(chan string, queueBufferSize)
 	c.ack.resultWaiters = make(map[int](chan string))
 	c.alive = true
+	c.data = make(map[string]interface{})
 }
 
 /**
@@ -76,7 +78,7 @@ Checks that Channel is still alive
 func (c *Channel) IsAlive() bool {
 	c.aliveLock.Lock()
 	defer c.aliveLock.Unlock()
-
+	
 	return c.alive
 }
 
@@ -86,27 +88,27 @@ Close channel
 func closeChannel(c *Channel, m *methods, args ...interface{}) error {
 	c.aliveLock.Lock()
 	defer c.aliveLock.Unlock()
-
+	
 	if !c.alive {
 		//already closed
 		return nil
 	}
-
+	
 	c.conn.Close()
 	c.alive = false
-
+	
 	//clean outloop
 	for len(c.out) > 0 {
 		<-c.out
 	}
 	c.out <- protocol.CloseMessage
-
+	
 	m.callLoopEvent(c, OnDisconnection)
-
+	
 	overfloodedLock.Lock()
 	delete(overflooded, c)
 	overfloodedLock.Unlock()
-
+	
 	return nil
 }
 
@@ -122,7 +124,7 @@ func inLoop(c *Channel, m *methods) error {
 			closeChannel(c, m, protocol.ErrorWrongPacket)
 			return err
 		}
-
+		
 		switch msg.Type {
 		case protocol.MessageTypeOpen:
 			if err := json.Unmarshal([]byte(msg.Source[1:]), &c.header); err != nil {
@@ -145,7 +147,7 @@ var overfloodedLock sync.Mutex
 func AmountOfOverflooded() int64 {
 	overfloodedLock.Lock()
 	defer overfloodedLock.Unlock()
-
+	
 	return int64(len(overflooded))
 }
 
@@ -166,12 +168,12 @@ func outLoop(c *Channel, m *methods) error {
 			delete(overflooded, c)
 			overfloodedLock.Unlock()
 		}
-
+		
 		msg := <-c.out
 		if msg == protocol.CloseMessage {
 			return nil
 		}
-
+		
 		err := c.conn.WriteMessage(msg)
 		if err != nil {
 			return closeChannel(c, m, err)
@@ -190,7 +192,7 @@ func pinger(c *Channel) {
 		if !c.IsAlive() {
 			return
 		}
-
+		
 		c.out <- protocol.PingMessage
 	}
 }
